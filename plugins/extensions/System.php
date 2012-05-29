@@ -149,15 +149,18 @@ class System_commands extends extension {
 				$func = (strtolower(args($message,1)) == 'allow' ? 'add' : (strtolower(args($message,1)) == 'ban' ? 'ban' : 'rem')).'Cmd';
 				$cmd = strtolower(args($message, 2));
 				$user = strtolower(args($message, 3));
-				$user = strlen($user)>=1?$user:$from;
 				$say = $from.': ';
-				if(strlen($cmd)>=1) {
+				if(empty($cmd))
+					$say.= $this->Bot->trigger.'command '.$subby.' [cmd] [user].';
+				elseif(empty($user))
+					$say.= $this->Bot->trigger.'command '.$subby.' [cmd] [user].';
+				else {
 					if($this->user->$func($user,$cmd)) {
 						if($func == 'addCmd') $say.= $user.' has been given access to '.$cmd.'.';
 						if($func == 'banCmd') $say.= $user.' has been disallowed access to '.$cmd.'.';
 						if($func == 'remCmd') $say.= $user.'\'s access to '.$cmd.' has been reset.';
 					} else $say.= 'Could not edit '.$user.'\'s access to '.$cmd.'.';
-				} else $say.= 'Use this command to edit a users access to a command.';
+				}
 				break;
 			case 'change':
 				$say = "$from: ";
@@ -379,6 +382,7 @@ class System_commands extends extension {
 
 		switch($act) {
 			case 'add':
+				if(empty($usrx) || empty($priv)) return $this->dAmn->say($ns, $from.': Usage: '.$this->Bot->trigger.'user add [username] [privilege class]');
                                 if($usrx == $this->Bot->username) return $this->dAmn->say($ns, $from.': Failed to add '.$usrx.' to user list.');
 				$r = $this->user->add($usrx,$priv);
 				$t = $this->user->class_name($priv);
@@ -387,6 +391,7 @@ class System_commands extends extension {
 				break;
 			case 'rem':
 			case 'remove':
+				if(empty($usrx) || empty($priv)) return $this->dAmn->say($ns, $from.': Usage: '.$this->Bot->trigger.'user '.$act.' [username] [privilege class]');
 				$r = $this->user->rem($usrx);
 				if($r=='removed') $say = $from.': Removed '.$usrx.' from the user list.';
 				else $say = $from.': Failed to remove '.$usrx.' from the user list ('.$r.')';
@@ -518,7 +523,7 @@ class System_commands extends extension {
 		$versions = explode('/', $data[3], 2);
 		$strig = trim(htmlentities($data[5]));
 		if(strstr($data[5], '&amp;') || strstr($data[5], '&lt;') || strstr($data[5], '&gt;'))
-			if($data[2] == 'Komodo' && $versions[0] >= '2.58' || $data[2] != 'Komodo')
+			if($data[2] == 'Komodo' && $versions[0] == '2.58' || $data[2] != 'Komodo')
 				$strig = trim(htmlspecialchars_decode($data[5], ENT_NOQUOTES));
 		if($data[2] == 'Komodo' && $versions[0] >= '2.58' && strstr($data[5], ' '))
 			$strig = trim(str_replace(' ', '', $strig));
@@ -815,7 +820,8 @@ class System_commands extends extension {
 					if(stristr($command2[0], $this->Bot->username) || strstr($command2[0], 'ALL')) {
 						if($version > $this->Bot->info['version'] && $from == 'Botdom') {
 							$this->botversion['latest'] = false;
-							$this->sendnote($this->Bot->owner, 'Update Service', "A new version of Contra is available. (version: {$version}; released on {$released}) You can download it from http://botdom.com/wiki/Contra#Latest or type <code>{$this->Bot->trigger}update</code> to update your bot.<br /><br />(<b>NOTE: using <code>{$this->Bot->trigger}update</code> will overwrite all your changes to your bot.</b>)");
+							if(!isset($this->Bot->updatenotes) || $this->Bot->updatenotes == true)
+								$this->sendnote($this->Bot->owner, 'Update Service', "A new version of Contra is available. (version: {$version}; released on {$released}) You can download it from http://botdom.com/wiki/Contra#Latest or type <code>{$this->Bot->trigger}update</code> to update your bot.<br /><br />(<b>NOTE: using <code>{$this->Bot->trigger}update</code> will overwrite all your changes to your bot.</b>)<br /><br /><sub>To disable this update note in the future, set 'updatenotes' in config.cf to false.</sub>");
 							$this->Console->Alert("Contra {$version} has been released on {$released}. Get it at http://botdom.com/wiki/Contra#Latest");
 						}
 					}
@@ -882,16 +888,17 @@ class System_commands extends extension {
 	function sendnote($to, $from, $content) {
 		if(empty($to)) return false;
 		$user = strtolower($to);
+		$this->loadnotes();
 		if(!isset($this->notes[$user]))
 			$this->notes[$user] = array();
 		if(!isset($this->receivers[$user]))
 			$this->receivers[$user] = 1;
 		else $this->receivers[$user]++;
 		$this->notewrite('receive', $this->receivers);
-		$i = count($this->notes[$user]);
-		$this->notes[$user][$i]['content'] = $content;
-		$this->notes[$user][$i]['from'	 ] = 	$from;
-		$this->notes[$user][$i]['ts'	 ] =   time();
+		$this->notes[$user][-1]['content'] = $content;
+		$this->notes[$user][-1]['from'   ] = $from;
+		$this->notes[$user][-1]['ts'     ] = time();
+		ksort($this->notes[$user]);
 		$this->notewrite('notes', $this->notes);
 		$this->loadnotes();
 		return true;
