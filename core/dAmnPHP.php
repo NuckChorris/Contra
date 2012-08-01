@@ -77,19 +77,12 @@ class dAmnPHP {
 			'version' => '0.3',
 			'port' => 3900,
 		),
-		'login' => array(
-			'transport' => 'ssl://',
-			'host' => 'www.deviantart.com',
-			'file' => '/users/login',
-			'port' => 443,
-		),
 	);
 	public $Client = 'dAmnPHP';
 	public $Agent = 'dAmnPHP/5';
 	public $owner = 'photofroggy';
 	public $trigger = '!';
 	public $socket = Null;
-	public $cookie = Null;
 	public $connecting = Null;
 	public $login = Null;
 	public $connected = Null;
@@ -141,108 +134,9 @@ class dAmnPHP {
 	function Message($str = '', $ts = false) { echo $this->Clock($ts),' '.$str,chr(10); }
 	function Notice($str = '', $ts = false)  { $this->Message('** '.$str,$ts); }
 	function Warning($str = '', $ts = false) { $this->Message('>> '.$str,$ts); }
-	function getCookie($username, $pass) {
-		// Method to get the cookie! Yeah! :D
-		// Our first job is to open an SSL connection with our host.
-		$socket = fsockopen(
-			$this->server['login']['transport'].$this->server['login']['host'],
-			$this->server['login']['port']
-		);
-		// If we didn't manage that, we need to exit!
-		if($socket === false) {
-		return array(
-			'status' => 2,
-			'error' => 'Could not open an internet connection');
-		}
-		// Fill up the form payload
-		$POST = '&username='.urlencode($username);
-		$POST.= '&password='.urlencode($pass);
-		$POST.= '&remember_me=1';
-		// And now we send our header and post data and retrieve the response.
-		$response = $this->send_headers(
-			$socket,
-			$this->server['login']['host'],
-			$this->server['login']['file'],
-			'http://www.deviantart.com/users/rockedout',
-			$POST
-		);
-
-		// Now that we have our data, we can close the socket.
-		fclose ($socket);
-		// And now we do the normal stuff, like checking if the response was empty or not.
-		if(empty($response))
-		return array(
-			'status' => 3,
-			'error' => 'No response returned from the server'
-		);
-		if(stripos($response, 'set-cookie') === false)
-		return array(
-			'status' => 4,
-			'error' => 'No cookie returned'
-		);
-		// Grab the cookies from the header
-		$response=explode("\r\n", $response);
-		$cookie_jar = array();
-		foreach ($response as $line)
-		{
-			if(strpos($line, 'Location: ') !== false)
-				if($line == 'Location: http://www.deviantart.com/users/wrong-password')
-				return array(
-					'status' => 6,
-					'error' => 'Wrong password returned'
-				);
-				if (strpos($line, 'Set-Cookie:')!== false)
-					$cookie_jar[] = substr($line, 12, strpos($line, '; ')-12);
-		}
-		// Using these cookies, we're gonna go to chat.deviantart.com and get
-		// our authtoken from the dAmn client.
-		if (($socket = @fsockopen('ssl://www.deviantart.com', 443)) == false)
-			return array(
-			'status' => 2,
-			'error' => 'Could not open an internet connection');
-
-		$response = $this->send_headers(
-			$socket,
-			'chat.deviantart.com',
-			'/chat/Botdom',
-			'http://chat.deviantart.com',
-			null,
-			$cookie_jar
-		);
-
-		// Now search for the authtoken in the response
-		$cookie = null;
-		if(($pos = strpos($response, 'dAmn_Login( ')) !== false)
-		{
-			$response = substr($response, $pos+12);
-			$cookie = substr($response, strpos($response, '", ')+4, 32);
-		}
-		elseif(($pos = strpos($response, 'Location: http://verify.deviantart.com')) !== false)
-		return array(
-			'status' => 6,
-			'error' => 'Account not verfied, check your email and verify your account first'
-		);
-		else return array(
-			'status' => 4,
-			'error' => 'No authtoken found in dAmn client'
-		);
-
-		// Because errors still happen, we need to make sure we now have an array!
-		if(!$cookie)
-		return array(
-			'status' => 5,
-			'error' => 'Malformed cookie returned'
-		);
-		// We got a valid cookie!
-		return array(
-			'status' => 1,
-			'cookie' => $cookie
-		);
-	}
-
 	// oAuth function, mode sets silent, 0 = silent, 1 = echo
 	public function oauth($mode, $refresh = false) {
-		//$this->os = PHP_OS; // The System OS
+		$this->os = PHP_OS; // The System OS
 		$this->client_id = '24'; // OAuth 2.0 client_id
 		$this->client_secret = 'b6c81c08563888f0da7ea3f7f763c426'; // OAuth 2.0 client_secret
 
@@ -261,12 +155,11 @@ class dAmnPHP {
 					if($refresh) {
 						// Getting the access token.
 						if($mode == 0) echo "Refreshing Token" . LBR;
-						$tokens = $this->socket('/oauth2/draft15/token?client_id='.$this->client_id.'&redirect_uri=http://damnapp.com//apicode.php&grant_type=refresh_token&client_secret='.$this->client_secret.'&refresh_token='.$this->oauth_tokens->refresh_token);
+						$tokens = $this->socket('/oauth2/draft15/token?client_id='.$this->client_id.'&redirect_uri=http://damn.shadowkitsune.net/apicode/&grant_type=refresh_token&client_secret='.$this->client_secret.'&refresh_token='.$this->oauth_tokens->refresh_token);
 						// Set to oauth_tokens variable
 						$this->oauth_tokens = json_decode($tokens);
 						if($this->oauth_tokens->status != "success") {
-
-							if($mode == 0) echo $this->error("For some reason, your refresh tokens failed") . LBR . HR;
+							if($mode == 0) echo $this->error("For some reason, your refresh tokens failed") . LBR;
 						} else {
 							// Writing to oauth.json
 							$config_file = "oauth.json";
@@ -274,60 +167,41 @@ class dAmnPHP {
 							$fh = fopen($config_file, 'w') or die("can't open file");
 							fwrite($fh, $tokens);
 							fclose($fh);
-							if($mode == 0) echo "Tokens grabbed with refreshtoken!" . LBR . HR;
+							if($mode == 0) echo "Tokens grabbed with refreshtoken!" . LBR;
 						}
 					} else {
 						if($mode == 0) echo "Checking if tokens have expired..." . LBR;
 						$placebo = json_decode($this->socket('/api/draft15/placebo?access_token='.$this->oauth_tokens->access_token));
 						if($placebo->status != "success") {
 							if($mode == 0) echo "Tokens expired, grabbing new ones..." . LBR;
-							(!is_writable($config_file)) ?: chmod($config_file, 755);
-							unlink($config_file);
 							$this->oauth(0, true);
 						} else {
-							if($mode == 0) echo "Tokens grabbed!" . LBR . HR;
+							if($mode == 0) echo "Tokens grabbed!" . LBR;
 							fclose($fh);
 						}
 					}
 				} else {
 					if($mode == 0) echo $this->error("Your token file is empty, grabbing new ones...") . LBR;
-					(!is_writable($config_file)) ?: chmod($config_file, 755);
 					unlink($config_file);
 					$this->oauth(0);
-
 				}
 			} else {
 				if($mode == 0) echo "Grabbing the oAuth Tokens from deviantART..." . LBR; // Turn off if silent
 
-				// Opening browser based on OS
-				switch($this->os) {
-					case "Darwin": // Mac OSX uses open command
-						exec("open 'https://www.deviantart.com/oauth2/draft15/authorize?client_id=".$this->client_id."&redirect_uri=http://damnapp.com/apicode.php&response_type=code'");
-						break;
-					case "WINNT": // Windows uses start command
-						exec('start "" "https://www.deviantart.com/oauth2/draft15/authorize?client_id=".$this->client_id."&redirect_uri=http://damnapp.com/apicode.php&response_type=code"');
-						break;
-					case "Linux": // Linux uses browser
-						exec("xdg-open 'https://www.deviantart.com/oauth2/draft15/authorize?client_id=".$this->client_id."&redirect_uri=http://damnapp.com/apicode.php&response_type=code'");
-						break;
-		 			default: // No browser command found so echo it out
-		 				echo "Could not open your browser to the required URL. Please load the link below!" . LBR;
-		 				echo 'https://www.deviantart.com/oauth2/draft15/authorize?client_id='.$this->client_id.'&redirect_uri=http://damnapp.com/apicode.php&response_type=code' . LBR;
-		 				break;
-		 		}
+				echo "Open your browser to the required URL. Please load the link below!" . LBR;
+		 		echo 'https://www.deviantart.com/oauth2/draft15/authorize?client_id='.$this->client_id.'&redirect_uri=http://damn.shadowkitsune.net/apicode/&response_type=code' . LBR;
 
 				// Retreiving the code
 				echo "Enter the code:" . LBR;
 				$code = trim(fgets(STDIN)); // STDIN for reading input
 
 				// Getting the access token.
-				$tokens = $this->socket('/oauth2/draft15/token?client_id='.$this->client_id.'&redirect_uri=http://damnapp.com//apicode.php&grant_type=authorization_code&client_secret='.$this->client_secret.'&code='.$code);
+				$tokens = $this->socket('/oauth2/draft15/token?client_id='.$this->client_id.'&redirect_uri=http://damn.shadowkitsune.net/apicode/&grant_type=authorization_code&client_secret='.$this->client_secret.'&code='.$code);
 
 				// Set to oauth_tokens variable
 				$this->oauth_tokens = json_decode($tokens);
 				if($this->oauth_tokens->status != "success") {
-
-					if($mode == 0) echo $this->error("For some reason, your tokens failed") . LBR . HR;
+					if($mode == 0) echo $this->error("For some reason, your tokens failed") . LBR;
 				} else {
 					// Writing to oauth.json
 					$config_file = "oauth.json";
@@ -335,7 +209,7 @@ class dAmnPHP {
 					$fh = fopen($config_file, 'w') or die("can't open file");
 					fwrite($fh, $tokens);
 					fclose($fh);
-					if($mode == 0) echo "Tokens grabbed!" . LBR . HR;
+					if($mode == 0) echo "Tokens grabbed!" . LBR;
 				}
 			}
 		}
@@ -373,7 +247,7 @@ class dAmnPHP {
 		echo " \033[1;33m" . $text . "\033[0m";
 	}
 
-	function send_headers($socket, $host, $url, $referer, $post=null, $cookies=array())
+	function send_headers($socket, $host, $url, $referer, $post=null)
 	{
 	    try
 	    {
@@ -384,8 +258,6 @@ class dAmnPHP {
 		$headers .= "Host: $host\r\n";
 		$headers .= 'User-Agent: '.$this->Agent."\r\n";
 		$headers .= "Referer: $referer\r\n";
-		if ($cookies != array())
-			$headers .= 'Cookie: '.implode("; ", $cookies)."\r\n";
 		$headers .= "Connection: close\r\n";
 		$headers .= "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*\/*;q=0.8\r\n";
 		$headers .= "Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7\r\n";
@@ -473,7 +345,6 @@ class dAmnPHP {
 	*               understanding the packets, just imagine that the
 	*               "LBR"s are actually "\n"s, because they are...
 	*/
-
 	function join($channel) { $this->send('join '.$channel.LBR); }
 	function part($channel) {
 		if(strtolower($channel) == 'chat:datashare') return;
@@ -547,9 +418,10 @@ class dAmnPHP {
 }
 
 function parse_tablumps($data) {
+	$data = str_replace('chr(7)', '', $data);
 	$data = str_replace(dAmnPHP::$tablumps['a1'], dAmnPHP::$tablumps['a2'], $data);
 	$data = preg_replace(dAmnPHP::$tablumps['b1'], dAmnPHP::$tablumps['b2'], $data);
-	$data = preg_replace('/<abbr title="colors:[A-F0-9]{6}:[A-F0-9]{6}"><\/abbr>/','',$data);
+	$data = preg_replace('/<abbr title="colors:[A-F0-9]{6}:[A-F0-9]{6}"><\/abbr>/','', $data);
 	return preg_replace('/<([^>]+) (width|height|title|alt)=""([^>]*?)>/', "<\\1\\3>", $data);
 }
 
