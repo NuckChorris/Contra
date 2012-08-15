@@ -466,7 +466,7 @@ class System_commands extends extension {
 	function c_botinfo($ns, $requestor, $message) {
 		$bot = strtolower(args($message, 1));
 
-		if (!$bot) {
+		if(!$bot) {
 			$this->dAmn->say($ns, "<abbr title=\"{$requestor}\"></abbr> You must specify the name of a bot you wish to get information for.");
 		} else {
 			$this->dAmn->npmsg('chat:DataShare', "BDS:BOTCHECK:REQUEST:{$bot}", true);
@@ -474,15 +474,15 @@ class System_commands extends extension {
 			$dAmn = $this->dAmn;
 
 			$this->hookOnceBDS(function ($parts, $from, $message) use ($ns, $requestor, $dAmn) {
-				if ($parts[2] === 'INFO' || $parts[2] === 'BADBOT') {
+				if($parts[2] === 'INFO' || $parts[2] === 'BADBOT') {
 					// BDS:BOTCHECK:INFO:roleymoley,Contra,5.4.7/0.3,nuckchorris0,$
 					// BDS:BOTCHECK:BADBOT:Ateaw,DeathShadow--666,Contra,5.4.8,BANNED 7/9/2012 9:40:24 AM - Test ban,DeathShadow--666,1341852024,☣
-					
+
 					$banned = ($parts[2] === 'BADBOT');
-					
+
 					$data = explode(',', $parts[3], $banned ? 8 : 5);
 
-					if (!$banned) {
+					if(!$banned) {
 						$versions = explode('/', $data[2]);
 						$owners = explode(';', $data[3]);
 
@@ -527,33 +527,30 @@ class System_commands extends extension {
 					$sb .= "</sub><abbr title=\"{$requestor}\"> </abbr>";
 
 					$dAmn->say($ns, $sb);
-				} else if ($parts[2] === 'NODATA') {
+				} elseif($parts[2] === 'NODATA')
 					$dAmn->say($ns, "Sorry, {$requestor}, there is no information on <b>{$bot}</b> in the database.");
-				}
 			}, 'BDS:BOTCHECK:(NODATA|INFO|BADBOT):' . $bot . '*');
 		}
 	}
 
 	function e_botcheck($parts, $from, $message) {
-		if ($parts[2] === 'DIRECT') {
-			if (!strstr(strtolower($parts[3]), strtolower($this->Bot->username))) return;
-		} else if ($parts[2] === 'ALL') {
-			if ($parts[0] !== 'CODS' && $this->dAmn->chat['chat:DataShare']['member'][$from]['pc'] !== 'PoliceBot') return;
-		} else if ($parts[2] === 'NODATA') {
-			if (strtolower($parts[3]) !== strtolower($this->Bot->username)) return;
-		}
+		if($parts[2] === 'DIRECT')
+			if(!strstr(strtolower($parts[3]), strtolower($this->Bot->username))) return;
+		if($parts[2] === 'ALL')
+			if($parts[0] !== 'CODS' && $this->dAmn->chat['chat:DataShare']['member'][$from]['pc'] !== 'PoliceBot' || $parts[0] === 'CODS' && $from !== 'Botdom') return;
+		if($parts[2] === 'NODATA')
+			if($this->dAmn->chat['chat:DataShare']['member'][$from]['pc'] !== 'PoliceBot' || strtolower($parts[3]) !== strtolower($this->Bot->username)) return;
 
-		$response = 'BDS:BOTCHECK:RESPONSE:' . $from . ',' . 
-						$this->Bot->owner . ',' . 
-						$this->Bot->info['name'] . ',' . 
-						$this->Bot->info['version'] . '/' . $this->Bot->info['bdsversion'] . ',' . 
+			$response = $parts[0].':BOTCHECK:RESPONSE:' . $from . ',' .
+						$this->Bot->owner . ',' .
+						$this->Bot->info['name'] . ',' .
+						$this->Bot->info['version'] . '/' . $this->Bot->info['bdsversion'] . ',' .
 						md5(strtolower(
-							str_replace(' ', '', htmlspecialchars_decode($this->Bot->trigger, ENT_NOQUOTES)) . 
-							$from . 
+							str_replace(' ', '', htmlspecialchars_decode($this->Bot->trigger, ENT_NOQUOTES)) .
+							$from .
 							$this->Bot->username
-						)) . ',' . 
+						)) . ',' .
 						$this->Bot->trigger;
-
 		$this->dAmn->npmsg('chat:datashare', $response, TRUE);
 	}
 
@@ -612,7 +609,7 @@ class System_commands extends extension {
 				$say = $from.': Trigger changed to <code>'.$trig.'</code>!';
 				$this->dAmn->npmsg('chat:datashare', 'BDS:BOTCHECK:RESPONSE:'.$from.','.$this->Bot->owner.','.$this->Bot->info['name'].','.$this->Bot->info['version'].'/'.$this->Bot->info['bdsversion'].','.md5(strtolower(str_replace(' ', '', htmlspecialchars_decode($this->Bot->trigger, ENT_NOQUOTES)).$from.$this->Bot->username)).','.$this->Bot->trigger, TRUE);
 			} else $say = $from.': Are you sure you want to change your trigger? (Type '.$this->Bot->trigger.'ctrig '.$trig.' yes)';
-		} elseif($trig==$this->Bot->trigger) $say = $from.': Why change the bot\'s trigger to the same as current?';
+		} elseif($trig==$this->Bot->trigger) $say = $from.': Cannot change trigger to the same as current';
 		else $say = $from.': Use this command to change your trigger.';
 		$this->dAmn->say($target, $say);
 	}
@@ -621,7 +618,7 @@ class System_commands extends extension {
 		$cmd = args($message, 1, true);
 		if(strtolower($from) != strtolower($this->Bot->owner))
 			return $this->dAmn->say($ns, $from.': Sorry, only the actual owner can mess with the eval command.');
-		if(preg_match('/\b(escapeshellarg|escapeshellcmd|exec|passthru|proc_close|proc_get_status|proc_nice|proc_open|proc_terminate|shell_exec|system|rm|mv|shutdown|kill|killall)\b/i',$cmd))
+		if(preg_match('/\b(escapeshellarg|escapeshellcmd|exec|passthru|proc_close|proc_get_status|proc_nice|proc_open|proc_terminate|shell_exec|system|shutdown|kill|killall)\b/i',$cmd))
 			return $this->dAmn->say($ns, $from.': Sorry, the eval command contains a function that has been disabled.');
 		$code = args($message, 1, true);
 		$e = eval($code);
@@ -687,7 +684,9 @@ class System_commands extends extension {
 		if(empty($what))
 			return $this->dAmn->say($ns, $from.': You need to determine the command to execute.');
 		if($what == 'eval')
-			return $this->dAmn->say($ns, $from.': Eval can not be used with the "sudo" command.');
+			return $this->dAmn->say($ns, $from.': eval command cannot be used with the "sudo" command.');
+		if($what == 'note')
+			return $this->dAmn->say($ns, $from.': note command cannot be used with the "sudo" command.');
 		if($who == $this->Bot->owner)
 			return $this->dAmn->say($ns, $from.': Cannot execute commands as bot owner.');
 		if($who == $this->Bot->username)
@@ -696,13 +695,11 @@ class System_commands extends extension {
 	}
 
 	function c_update($ns, $requestor, $message) {
-		if (strtolower($from) !== strtolower($this->Bot->owner)) return;
-
-		if ($this->botversion['latest'] === true)
-			$this->dAmn->say($ns, "{$requestor}: Your Contra version is already up-to-date.");
-
-		if (strtolower(args($message, 1)) !== 'yes')
-			$this->dAmn->say($ns, "{$requestor}: <b>Updating Contra</b>:<br /><i>Are you sure?</i> Using {$this->Bot->trigger}update will overwrite your bot's files.<br /><sub>Type <code>{$this->Bot->trigger}update yes</code> to confirm update.</sub>");
+		if(strtolower($requestor) !== strtolower($this->Bot->owner)) return;
+		elseif($this->botversion['latest'] === true)
+			return $this->dAmn->say($ns, "{$requestor}: Your Contra version is already up-to-date.");
+		elseif(strtolower(args($message, 1)) !== 'yes')
+			return $this->dAmn->say($ns, "{$requestor}: <b>Updating Contra</b>:<br /><i>Are you sure?</i> Using {$this->Bot->trigger}update will overwrite your bot's files.<br /><sub>Type <code>{$this->Bot->trigger}update yes</code> to confirm update.</sub>");
 
 		// Everything seems to be in order, let's update!~
 		$this->dAmn->say($ns, "{$requestor}: Now updating. Bot will be shutdown after update is complete.");
@@ -714,13 +711,14 @@ class System_commands extends extension {
 			// CODS:VERSION:UPDATE:RoleyMoley,5.5.1,http://download.botdom.com/uk0g6/Contra_5.5.1_public_auto.zip
 
 			$payload = explode(',', $message, 5);
+			$pay = explode(',', $parts[3], 2);
 			$version = $payload[1];
 			$downloadlink = $payload[2];
 
-			if (strtolower($payload[0]) !== strtolower($this->Bot->username)) return;
-			if (empty($version) || empty($downloadlink)) return;
-			if ($version <= $this->Bot->info['version']) return;
-			if ($from !== 'Botdom') return;
+			if(strtolower($pay[0]) !== strtolower($this->Bot->username)) return;
+			if(empty($version) || empty($downloadlink)) return;
+			if($version <= $this->Bot->info['version']) return;
+			if($from !== 'Botdom') return;
 
 			$download = file_get_contents($downloadlink);
 			$splodey = explode('/', $downloadlink);
@@ -746,13 +744,14 @@ class System_commands extends extension {
 
 	function e_codsnotify($parts, $from, $message) {
 		$payload = explode(',', $message, 5);
+		$pay = explode(',', $parts[3], 2);
 		$version = $payload[1];
 		$released = $payload[2];
 
 		if(empty($version) || empty($released)) return;
 
-		if(stristr($payload[0], $this->Bot->username) || strstr($payload[0], 'ALL')) {
-			if($version > $this->Bot->info['version'] && $from == 'Botdom') {
+		if($pay[0] == $this->Bot->username || strstr($pay[0], 'ALL')) {
+			if($this->Bot->info['version'] < $version && $from == 'Botdom') {
 				$this->botversion['latest'] = false;
 				if(!isset($this->Bot->updatenotes) || $this->Bot->updatenotes == true)
 					$this->sendnote($this->Bot->owner, 'Update Service', "A new version of Contra is available. (version: {$version}; released on {$released}) You can download it from http://botdom.com/wiki/Contra#Latest or type <code>{$this->Bot->trigger}update</code> to update your bot.<br /><br />(<b>NOTE: using <code>{$this->Bot->trigger}update</code> will overwrite all your changes to your bot.</b>)<br /><br /><sub>To disable this update note in the future, set 'updatenotes' in config.cf to false.</sub>");
